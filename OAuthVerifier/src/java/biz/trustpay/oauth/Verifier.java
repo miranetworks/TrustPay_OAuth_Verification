@@ -18,6 +18,7 @@ import oauth.signpost.basic.DefaultOAuthConsumer;
 import oauth.signpost.exception.OAuthCommunicationException;
 import oauth.signpost.exception.OAuthExpectationFailedException;
 import oauth.signpost.exception.OAuthMessageSignerException;
+import oauth.signpost.http.HttpParameters;
 
 public class Verifier extends HttpServlet {
 
@@ -39,6 +40,7 @@ public class Verifier extends HttpServlet {
             String signature_in = "";
             String oauth_nonce = "";
             String oauth_timestamp = "";
+            String url_tosign = request.getRequestURL().toString() + "?" + request.getQueryString();
             if (authorization != null) {
                 signature_in = getValue("oauth_signature", authorization, ",");
                 oauth_nonce = getValue("oauth_nonce", authorization, ",");
@@ -49,11 +51,21 @@ public class Verifier extends HttpServlet {
                     signature_in = getValue("oauth_signature", querystring, "&");
                     oauth_nonce = getValue("oauth_nonce", querystring, "&");
                     oauth_timestamp = getValue("oauth_timestamp", querystring, "&");
+                    //Clear all OAuth params
+                    url_tosign = url_tosign.replace("&oauth_signature=" + signature_in, "");
+                    url_tosign = url_tosign.replace("&oauth_consumer_key=" + application_id, "");
+                    url_tosign = url_tosign.replace("&oauth_version=1.0", "");
+                    url_tosign = url_tosign.replace("&oauth_signature_method=HMAC-SHA1", "");
+                    url_tosign = url_tosign.replace("&oauth_nonce=" + oauth_nonce, "");
+                    url_tosign = url_tosign.replace("&oauth_timestamp=" + oauth_timestamp, "");
                 }
             }
-
+            HttpParameters httpparms = new HttpParameters();
+            httpparms.put("oauth_nonce", oauth_nonce);
+            httpparms.put("oauth_timestamp", oauth_timestamp);
+            consumer.setAdditionalParameters(httpparms);
             //Append the nonce and timestamp to incoming url and get signed url
-            String url_tosign = request.getRequestURL().toString() + "?" + request.getQueryString() + "&oauth_nonce=" + oauth_nonce + "&oauth_timestamp=" + oauth_timestamp;
+
             String signed_url = consumer.sign(url_tosign);
             //Extract verification signature from signed URl
             String test_signature = getValue("oauth_signature", signed_url, "&");
